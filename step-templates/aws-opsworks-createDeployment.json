@@ -1,0 +1,90 @@
+{
+  "Id": "ActionTemplates-201",
+  "Name": "AWS OpsWorks deployment",
+  "Description": "This step starts a deployment on OpsWorks and gets deployment status until successful or failed.",
+  "ActionType": "Octopus.Script",
+  "Version": 11,
+  "CommunityActionTemplateId": null,
+  "Properties": {
+    "Octopus.Action.Script.Syntax": "PowerShell",
+    "Octopus.Action.Script.ScriptSource": "Inline",
+    "Octopus.Action.RunOnServer": "false",
+    "Octopus.Action.Script.ScriptBody": "\r\n#Retrieve Octopus Parameters \r\n\r\n#Get AWS OpsWorks Region \r\n$OpsWorksRegion = $OctopusParameters['OpsWorksRegion']\r\n\r\n#Get Stack ID\r\n$StackID = $OctopusParameters['StackID']\r\n\r\n#Get App ID\r\n$AppID = $OctopusParameters['AppID']\r\n\r\n#Get Layer ID\r\n$LayerID = $OctopusParameters['$LayerID']\r\n\r\n#Get AWS Access Key\r\n$AWSAccessKey = $OctopusParameters['AWSAccessKey']\r\n\r\n#Get AWS Secret Access Key\r\n$AWSSecretKey = $OctopusParameters['AWSSecretKey']\r\n\r\n#-----------------------------------------------\r\n\r\n#Re-setting counters and variables\r\n$RETRY_LIMIT=40\r\n$WAIT_TIME=30\r\n$RETRY_COUNT=0\r\n$SUCCESS=0\r\n$DEPLOY=\"\"\r\n$CHECK=\"\"\r\n\r\n#Initialises the AWS Credentials based on the Access Key and Secret Key provided, so that we can invoke the APIs further down\r\necho \"Setting AWS Porfile...\"\r\nSet-AWSCredentials -AccessKey $AWSAccessKey -SecretKey $AWSSecretKey -StoreAs AWSCreds\r\n#Initialises the Default AWS Region based on the region provided\r\nInitialize-AWSDefaults -ProfileName AWScreds -Region $OpsWorksRegion\r\n\r\n#Run App deployment on Stack \r\necho \"Deploying App...\"\r\n$DEPLOY = New-OPSDeployment -ProfileName AWScreds -Region $OpsWorksRegion -StackId $StackID -AppId $AppID -LayerId $LayerID -Command_Name deploy\r\n\r\n#Check response for deployment ID\r\nif ( $DEPLOY -Match '[a-zA-Z0-9-]' ) {\r\n  echo \"Deployment initiated, Deployment ID: $DEPLOY\" }\r\nelse {\r\n  echo \"Deployment unsuccessful, response from AWS CLI: $DEPLOY\" }\r\n\r\nwhile ( $SUCCESS -ne 1  -And  $RETRY_COUNT -lt $RETRY_LIMIT  ) {\r\n  echo \"Checking attempt #$RETRY_COUNT of $RETRY_LIMIT...\";\r\n  $CHECK = Get-OPSDeployment -ProfileName AWScreds -Region $OpsWorksRegion -DeploymentId $DEPLOY\r\n\r\n  if ( $CHECK.Status -Match \"successful\" ) {\r\n    echo \"Status: successful\";\r\n    $SUCCESS = 1;\r\n    break }\r\n  elseIf ( $CHECK.Status -Match \"failed\" ) {\r\n    echo \"Status: failed\";\r\n    break }\r\n\r\n  sleep $WAIT_TIME;\r\n  $RETRY_COUNT++ }\r\n\r\nif ( $SUCCESS -eq 1 ) {\r\n  echo \"Deployment completed successfully!\" }\r\nelse {\r\n  echo \"Deployment did not complete successfully, details: $CHECK\" }\r\n\r\n",
+    "Octopus.Action.Script.ScriptFileName": null,
+    "Octopus.Action.Package.FeedId": null,
+    "Octopus.Action.Package.PackageId": null
+  },
+  "Parameters": [
+    {
+      "Id": "e6aeaa9b-f469-4607-a63e-14e1a7d5a495",
+      "Name": "OpsWorksRegion",
+      "Label": "OpsWorksRegion",
+      "HelpText": "A region is the location that your OpsWorks stack created in.\n\nRead more about Amazon Region names here:\nhttp://docs.aws.amazon.com/general/latest/gr/rande.html\n\nExamples of region names include:\n- eu-west-1\n- ap-southeast-1\n- ap-southeast-2\n- us-east-1",
+      "DefaultValue": "us-east-1",
+      "DisplaySettings": {
+        "Octopus.ControlType": "SingleLineText"
+      },
+      "Links": {}
+    },
+    {
+      "Id": "340c00ee-5268-4a67-a9b4-e233ad954e0e",
+      "Name": "StackID",
+      "Label": "Stack ID",
+      "HelpText": "This is the ID of the OpsWorks stack that you'd like to deploy to, e.g. cfb7e082-ad1d-4599-6681-de1c39ab45bf",
+      "DefaultValue": null,
+      "DisplaySettings": {
+        "Octopus.ControlType": "SingleLineText"
+      },
+      "Links": {}
+    },
+    {
+      "Id": "422423cf-1abe-4431-a825-aff59457b6a3",
+      "Name": "AppID",
+      "Label": "App ID",
+      "HelpText": "This is the App ID configured on OpsWorks that you'd like to deploy, e.g. 307bf668-d55d-47b5-bd6e-7bd417c6c7eb",
+      "DefaultValue": null,
+      "DisplaySettings": {
+        "Octopus.ControlType": "SingleLineText"
+      },
+      "Links": {}
+    },
+    {
+      "Id": "f867b3bc-3a89-4204-8934-7bef895b08cb",
+      "Name": "AWSAccessKey",
+      "Label": "Access Key ID",
+      "HelpText": "The IAM Access Key that can be used to make AWS CLI calls. Can be created and managed in AWS IAM.",
+      "DefaultValue": null,
+      "DisplaySettings": {
+        "Octopus.ControlType": "SingleLineText"
+      },
+      "Links": {}
+    },
+    {
+      "Id": "d036f9d8-f7f3-4203-a095-553c13b86fcc",
+      "Name": "AWSSecretKey",
+      "Label": "Secret Access Key",
+      "HelpText": "The IAM Secret Access Key that can be used to make AWS CLI calls. Can be created and managed in AWS IAM.",
+      "DefaultValue": null,
+      "DisplaySettings": {
+        "Octopus.ControlType": "SingleLineText"
+      },
+      "Links": {}
+    },
+    {
+      "Id": "0bfbd6a0-2ede-465b-bc18-c1dbd07dc8e0",
+      "Name": "LayerID",
+      "Label": "Layer ID",
+      "HelpText": "This is the ID of the layer that you wish to deploy to, e.g. 534f756c-3641-66c8-9f85-461ac5e11f8a",
+      "DefaultValue": null,
+      "DisplaySettings": {
+        "Octopus.ControlType": "SingleLineText"
+      },
+      "Links": {}
+    }
+  ],
+  "$Meta": {
+    "ExportedAt": "2017-07-20T00:41:34.974Z",
+    "OctopusVersion": "3.7.5",
+    "Type": "ActionTemplate"
+  }
+}
